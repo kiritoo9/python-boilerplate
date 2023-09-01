@@ -19,6 +19,13 @@ app.register_blueprint(welcome, url_prefix="/")
 app.register_blueprint(auth, url_prefix="/auth")
 app.register_blueprint(user, url_prefix="/master/user")
 
+# Error handler
+@app.errorhandler(404)
+async def not_found(e):
+    return {
+        "message": "Route is not found, make sure you update our documentation"
+    }, 404
+
 if __name__ == "__main__":
     debug = False
     if os.environ.get("APP_ENV") == "dev":

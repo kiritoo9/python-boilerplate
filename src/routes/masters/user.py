@@ -15,15 +15,43 @@ async def index():
         ])
 
         result = Users.query\
+            .with_entities(Users.id, Users.fullname)\
             .filter(Users.deleted == False)\
             .limit(args.get("limit"))\
             .offset(args.get("offset"))\
             .all()
 
+        data = []
+        for v in result:
+            data.append({
+                "id": v.id,
+                "fullname": v.fullname
+            })
+
         return {
-            "success": True,
             "args": args,
-            "data": [v.serialize() for v in result]
+            "data": data
         }, 200
     except Exception as e:
-        return(str(e))
+        return {
+            "message": "Something went wrong",
+            "detail": str(e)
+        }, 400
+
+@user.route("/<uuid:id>", methods=["GET"])
+async def detail(id):
+    try:
+        data = Users.query\
+            .filter(Users.id == id)\
+            .filter(Users.deleted == False)\
+            .one()
+
+        return {
+            "message": f"Request success with id {id}",
+            "data": data.serialize()
+        }, 200
+    except Exception as e:
+        return {
+            "message": "Something went wrong",
+            "detail": str(e)
+        }, 400
