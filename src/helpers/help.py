@@ -1,4 +1,4 @@
-from flask import request
+from quart import request
 
 '''
     custom_args filled with dict
@@ -7,7 +7,7 @@ from flask import request
         "default_value": "default_value_when_args_missing"
     }
 '''
-def get_args(custom_args = []):
+async def get_args(custom_args = []):
     args = request.args
 
     # default query params

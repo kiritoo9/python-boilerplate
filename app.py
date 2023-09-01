@@ -1,13 +1,13 @@
 import os
 from dotenv import load_dotenv
-from flask import Flask
+from quart import Quart
+from src.configs.database import CONNECTION_STRING, DB
 from src.routes.welcome import welcome
 from src.routes.auth import auth
 from src.routes.masters.user import user
-from src.configs.database import CONNECTION_STRING, DB
 
 load_dotenv()
-app = Flask(__name__)
+app = Quart(__name__)
 
 # Connect to database
 app.config['SQLALCHEMY_DATABASE_URI'] = CONNECTION_STRING

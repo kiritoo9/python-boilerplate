@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from flask_sqlalchemy import SQLAlchemy
+from quart_sqlalchemy import SQLAlchemy
 
 # Init functions
 load_dotenv()

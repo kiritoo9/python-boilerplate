@@ -1,9 +1,9 @@
-from flask import Blueprint
+from quart import Blueprint
 
 welcome = Blueprint('welcome', __name__)
 
 @welcome.route("/", methods=["GET"])
-def index():
+async def index():
     try:
         return {
             "message": "Welcome to MpuPython",

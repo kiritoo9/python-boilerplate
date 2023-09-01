@@ -1,9 +1,9 @@
-from flask import Blueprint
+from quart import Blueprint
 
 auth = Blueprint('auth', __name__)
 
 @auth.route("/", methods=["POST"])
-def index():
+async def index():
     try:
         return {
             "message": "This is auth endpoint",

@@ -1,13 +1,13 @@
-from flask import Blueprint, jsonify
+from quart import Blueprint, jsonify
 from src.models.users import Users
 from src.helpers.help import get_args
 
 user = Blueprint('user', __name__)
 
 @user.route("/", methods=["GET"])
-def index():
+async def index():
     try:
-        args = get_args([
+        args = await get_args([
             {
                 "name": "foo",
                 "default_value": "bar"
