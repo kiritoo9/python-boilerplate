@@ -23,6 +23,7 @@ class Users(DB.Model):
         return {
             'id': self.id, 
             'username': self.username,
+            'password': self.password,
             'fullname':self.fullname,
             'created_date':self.created_date
         }
