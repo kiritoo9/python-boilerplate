@@ -22,6 +22,7 @@ marshmallow==3.20.1
 packaging==23.1
 priority==2.0.0
 psycopg2==2.9.7
+PyJWT==2.8.0
 python-dotenv==1.0.0
 quart==0.18.4
 quart-sqlalchemy==2.0.0

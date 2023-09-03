@@ -5,6 +5,7 @@ from src.helpers.help import get_args
 from marshmallow import Schema, fields, validate, ValidationError
 import bcrypt
 from sqlalchemy.exc import SQLAlchemyError
+from src.middlewares.verify import verifyToken
 
 user = Blueprint('user', __name__)
 
@@ -14,6 +15,7 @@ class UserCreatedSchema(Schema):
     fullname = fields.Str(required=True)
 
 @user.route("/", methods=["GET"])
+@verifyToken
 async def index():
     try:
         args = await get_args([
@@ -48,6 +50,7 @@ async def index():
         }, 400
 
 @user.route("/<uuid:id>", methods=["GET"])
+@verifyToken
 async def detail(id):
     data = Users.query\
         .filter(Users.id == id)\
@@ -63,6 +66,7 @@ async def detail(id):
     }, 200
 
 @user.route("/", methods=["POST"])
+@verifyToken
 async def create():
     body = await request.json
 
@@ -102,3 +106,12 @@ async def create():
         "message": "Data inserted",
     }, 201
     
+@user.route("/", methods=["PUT"])
+@verifyToken
+async def update():
+    return { "message": "Data updated" }, 201
+
+@user.route("/", methods=["DELETE"])
+@verifyToken
+async def remove():
+    return { "message": "Data deleted" }, 201
