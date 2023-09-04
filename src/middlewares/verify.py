@@ -3,7 +3,7 @@ import jwt
 from dotenv import load_dotenv
 from functools import wraps
 from quart import request
-from src.models.users import Users
+from src.businesses.user import getUserById
 
 load_dotenv()
 
@@ -18,14 +18,18 @@ def verifyToken(func):
         # Check valid JWT
         try:
             decoded = jwt.decode(token, os.environ.get("SECRET_KEY"), algorithms="HS256")
-            # Check existing user
-            user = Users.query.filter(Users.id == decoded.get("id")).filter(Users.deleted == False).first()
-            if user is None:
-                return { "message": "User is not found, probably token is expired already" }, 401
-            else:
-                return await func(*args, **kwargs)
         except Exception as e:
             return { "message": "Token is not valid" }, 401
+
+        # Check existing user
+        user = await getUserById(decoded.get("id"))
+        if user is None:
+            return { "message": "User is not found, probably token is expired already" }, 401
+        else:
+            try:
+                return await func(*args, **kwargs)
+            except Exception as e:
+                return { "message": str(e) }, 400
             
         return { "message": "Authentication failed" }, 401
 

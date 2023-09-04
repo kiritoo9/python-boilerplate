@@ -1,18 +1,25 @@
-from quart import Blueprint, jsonify, request
-from src.models.users import Users
-from src.configs.database import DB
-from src.helpers.help import get_args
-from marshmallow import Schema, fields, validate, ValidationError
 import bcrypt
-from sqlalchemy.exc import SQLAlchemyError
+import datetime
+import math
+from quart import Blueprint, jsonify, request
+from marshmallow import Schema, fields, validate, ValidationError, validates_schema
+from src.helpers.help import get_args
 from src.middlewares.verify import verifyToken
+from src.businesses.user import getUsers, getUserCount, getUserById, getUserByUsername, insertUser, updateUser
 
 user = Blueprint('user', __name__)
 
-class UserCreatedSchema(Schema):
+class UserSchema(Schema):
+    id = fields.UUID(require=False)
     username = fields.Str(required=True)
-    password = fields.Str(required=True, validate=validate.Length(min=6, max=40))
+    password = fields.Str(required=False)
     fullname = fields.Str(required=True)
+
+    @validates_schema
+    def validate_password(self, data, **kwargs):
+        if 'id' not in data and 'password' not in data or 'id' not in data and data.get("password") == "":
+            raise ValidationError("Password cannot be empty")
+
 
 @user.route("/", methods=["GET"])
 @verifyToken
@@ -25,20 +32,13 @@ async def index():
             } # custom query parameters
         ])
 
-        result = Users.query\
-            .with_entities(Users.id, Users.fullname)\
-            .filter(Users.deleted == False)\
-            .limit(args.get("limit"))\
-            .offset(args.get("offset"))\
-            .all()
+        data = await getUsers(args)
+        totalPage = 1
+        count = await getUserCount(args)
+        if count > 0 and args.get("limit") > 0:
+            totalPage = math.ceil(count / args.get("limit"))
 
-        data = []
-        for v in result:
-            data.append({
-                "id": v.id,
-                "fullname": v.fullname
-            })
-
+        args["totalPage"] = totalPage
         return {
             "args": args,
             "data": data
@@ -52,11 +52,7 @@ async def index():
 @user.route("/<uuid:id>", methods=["GET"])
 @verifyToken
 async def detail(id):
-    data = Users.query\
-        .filter(Users.id == id)\
-        .filter(Users.deleted == False)\
-        .first()
-
+    data = await getUserById(id)
     if data is None:
         return { "message": "Data is not found" }, 400
 
@@ -72,7 +68,7 @@ async def create():
 
     # Validate input
     try:
-        body = UserCreatedSchema().load(body)
+        body = UserSchema().load(body)
     except ValidationError as err:
         return {
             "message": "Validation error",
@@ -80,26 +76,24 @@ async def create():
         }, 400
     
     # Validate existing and insert data
-    exists = Users.query\
-        .filter(Users.username == body.get("username"))\
-        .filter(Users.deleted == False)\
-        .first()
+    exists = await getUserByUsername(body.get("username"))
     if exists is not None:
         return { "message": "Username is already exists" }, 400
 
-    try:
-        # Hash password
-        encoded_password = body.get("password").encode("utf-8")
-        password = bcrypt.hashpw(encoded_password, bcrypt.gensalt())
+    # Hash password
+    encoded_password = body.get("password").encode("utf-8")
+    password = bcrypt.hashpw(encoded_password, bcrypt.gensalt())
 
-        # Do insert
-        to_insert = Users(None, body.get("username"), password.decode("utf-8"), body.get("fullname"), None)
-        DB.session.add(to_insert)
-        DB.session.commit()
-    except SQLAlchemyError as err:
-        DB.session.rollback()
-        errorMessage = str(err.__dict__['orig'])
-        return { "message": errorMessage }, 400
+    data = {
+        "id": None, # set None, uuid will set default in database
+        "username": body.get("username"),
+        "password": password.decode("utf-8"),
+        "fullname": body.get("fullname"),
+        "created_date": datetime.datetime.now()
+    }
+    result = await insertUser(data)
+    if result.get("success") == False:
+        return { "message": result.get("message") }, 400
 
     # Response
     return {
@@ -109,9 +103,55 @@ async def create():
 @user.route("/", methods=["PUT"])
 @verifyToken
 async def update():
+    body = await request.json
+
+    # Validate input
+    try:
+        body = UserSchema().load(body)
+    except ValidationError as err:
+        return {
+            "message": "Validation error",
+            "detail": err.messages
+        }, 400
+
+    data = await getUserById(body.get("id"))
+    if data is None:
+        return { "message": "Data is not found" }, 404
+
+    # Check exsiting username
+    user = await getUserByUsername(body.get("username"), body.get("id"))
+    if user is None:
+        user = await getUserByUsername(body.get("username"))
+        if user is not None:
+            return { "message": "Username is already exists" }, 400
+
+    data = {
+        "username": body.get("username"),
+        "fullname": body.get("fullname"),
+    }
+
+    # Hash password
+    if body.get("password") != "":
+        encoded_password = body.get("password").encode("utf-8")
+        password = bcrypt.hashpw(encoded_password, bcrypt.gensalt())
+        data["password"] = password.decode("utf-8")
+
+    # Update user
+    result = await updateUser(body.get("id"), data)
+    if result.get("success") == False:
+        return { "message": result.get("message") }, 400
+
     return { "message": "Data updated" }, 201
 
-@user.route("/", methods=["DELETE"])
+@user.route("/<uuid:id>", methods=["DELETE"])
 @verifyToken
-async def remove():
+async def remove(id):
+    user = await getUserById(id)
+    if user is None:
+        return { "message": "Data is not found" }, 404
+
+    result = await updateUser(id, {"deleted": True})
+    if result.get("success") == False:
+        return { "message": result.get("message") }, 400
+
     return { "message": "Data deleted" }, 201
