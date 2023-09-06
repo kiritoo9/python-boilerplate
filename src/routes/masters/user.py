@@ -4,6 +4,7 @@ import math
 from quart import Blueprint, jsonify, request
 from marshmallow import Schema, fields, validate, ValidationError, validates_schema
 from src.helpers.help import get_args
+from src.helpers.upload import upload
 from src.middlewares.verify import verifyToken
 from src.businesses.user import getUsers, getUserCount, getUserById, getUserByUsername, insertUser, updateUser
 
@@ -14,6 +15,7 @@ class UserSchema(Schema):
     username = fields.Str(required=True)
     password = fields.Str(required=False)
     fullname = fields.Str(required=True)
+    photo = fields.Str(required=False)
 
     @validates_schema
     def validate_password(self, data, **kwargs):
@@ -79,6 +81,15 @@ async def create():
     exists = await getUserByUsername(body.get("username"))
     if exists is not None:
         return { "message": "Username is already exists" }, 400
+
+    # Example when there is something needs to upload (image or file)
+    if body.get("photo") != "":
+        uploadResponse = await upload(body.get("photo"), "users")
+        if uploadResponse.get("uploaded") is False:
+            return { "message": uploadResponse.get("message") }, 400
+        else:
+            # Condition when upload file is success
+            print(f'Your file uploaded in here -> {uploadResponse.get("filename")}')
 
     # Hash password
     encoded_password = body.get("password").encode("utf-8")

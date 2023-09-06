@@ -1,3 +1,5 @@
+import string    
+import random
 from quart import request
 
 '''
@@ -34,3 +36,7 @@ async def get_args(custom_args = []):
         data[v.get("name")] = args.get(v.get("name")) if args.get(v.get("name")) is not None else v.get("default_value")
 
     return data
+
+async def random_string(length = 10):
+    ran = ''.join(random.choices(string.ascii_uppercase + string.digits, k = length))
+    return str(ran)
